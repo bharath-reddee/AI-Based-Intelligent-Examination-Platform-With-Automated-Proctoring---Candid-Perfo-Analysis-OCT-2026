@@ -1,0 +1,263 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+:root {
+  --font-heading: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color-scheme: light;
+
+  /* Master Academic SaaS Theme Palette */
+  --color-primary-navy: #233B67;
+  --color-secondary-blue: #4169C1;
+  --color-accent-teal: #35A6A0;
+  --color-bg-main: #F5F7FC;
+  --color-bg-secondary: #EDF2FA;
+  --color-card: #FFFFFF;
+  --color-text-main: #202B40;
+  --color-text-secondary: #718096;
+  --color-border: #E2E8F0;
+  --color-success: #299D70;
+  --color-warning: #D69B35;
+  --color-error: #D95C65;
+
+  /* Standardized Functional Layout Tokens */
+  --rg-bg-primary: #F5F7FC;
+  --rg-surface-elevated: #FFFFFF;
+  --rg-accent-primary: #4169C1;
+  --rg-accent-secondary: #35A6A0;
+  --rg-border: #E2E8F0;
+  --rg-border-subtle: #EDF2FA;
+  --rg-text-primary: #202B40;
+  --rg-text-secondary: #718096;
+  --rg-header-height: 72px;
+}
+
+.rg-layout-header {
+  height: var(--rg-header-height, 72px);
+  min-height: var(--rg-header-height, 72px);
+  max-height: var(--rg-header-height, 72px);
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background-color: #F5F7FC;
+  color: #202B40;
+  min-height: 100vh;
+  color-scheme: light;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+}
+
+/* Elevated Academic Surfaces */
+.glass-panel {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 18px;
+  box-shadow: 0 1px 3px 0 rgba(35, 59, 103, 0.04), 0 1px 2px -1px rgba(35, 59, 103, 0.02);
+}
+
+.glass-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 18px;
+  box-shadow: 0 1px 3px 0 rgba(35, 59, 103, 0.04), 0 1px 2px -1px rgba(35, 59, 103, 0.02);
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.glass-card:hover {
+  transform: translateY(-2px);
+  border-color: #CBD5E1;
+  box-shadow: 0 10px 25px -5px rgba(35, 59, 103, 0.07), 0 8px 10px -6px rgba(35, 59, 103, 0.03);
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, #233B67 0%, #4169C1 50%, #35A6A0 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #F5F7FC;
+}
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* Authentication & Form Input Containers */
+.login-glass-card {
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 24px;
+  box-shadow: 0 20px 40px -15px rgba(35, 59, 103, 0.08), 0 0 0 1px rgba(226, 232, 240, 0.8);
+}
+
+.login-glass-input {
+  background-color: #FFFFFF !important;
+  background: #FFFFFF !important;
+  border: 1px solid #E2E8F0 !important;
+  color: #202B40 !important;
+  border-radius: 12px;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.login-glass-input:hover {
+  border-color: #94A3B8 !important;
+}
+
+.login-glass-input:focus {
+  background-color: #FFFFFF !important;
+  border-color: #4169C1 !important;
+  box-shadow: 0 0 0 3px rgba(65, 105, 193, 0.16) !important;
+  outline: none;
+  color: #202B40 !important;
+}
+
+/* Autofill Overrides */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active,
+textarea:-webkit-autofill,
+textarea:-webkit-autofill:hover,
+textarea:-webkit-autofill:focus,
+textarea:-webkit-autofill:active,
+select:-webkit-autofill,
+select:-webkit-autofill:hover,
+select:-webkit-autofill:focus,
+select:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #FFFFFF inset !important;
+  box-shadow: 0 0 0 1000px #FFFFFF inset !important;
+  -webkit-text-fill-color: #202B40 !important;
+  caret-color: #202B40 !important;
+  border-color: #4169C1 !important;
+  transition: background-color 5000000s ease-in-out 0s;
+}
+
+.login-glass-input:-webkit-autofill,
+.login-glass-input:-webkit-autofill:hover,
+.login-glass-input:-webkit-autofill:focus,
+.login-glass-input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #FFFFFF inset !important;
+  box-shadow: 0 0 0 1000px #FFFFFF inset !important;
+  -webkit-text-fill-color: #202B40 !important;
+  caret-color: #202B40 !important;
+  border-color: #4169C1 !important;
+  transition: background-color 5000000s ease-in-out 0s;
+}
+
+input:-moz-autofill,
+textarea:-moz-autofill,
+select:-moz-autofill {
+  box-shadow: 0 0 0 1000px #FFFFFF inset !important;
+  -moz-text-fill-color: #202B40 !important;
+  filter: none;
+}
+
+::placeholder {
+  color: #94A3B8 !important;
+  opacity: 1 !important;
+}
+
+select {
+  color-scheme: light;
+}
+
+select option {
+  background-color: #FFFFFF;
+  color: #202B40;
+  padding: 8px 12px;
+}
+
+select option:hover,
+select option:focus,
+select option:checked {
+  background-color: #4169C1;
+  color: #FFFFFF;
+}
+
+/* Subtle Ambient Glows */
+.ambient-glow-navy {
+  background: radial-gradient(circle, rgba(35, 59, 103, 0.08) 0%, rgba(65, 105, 193, 0.04) 50%, transparent 70%);
+  filter: blur(75px);
+}
+
+.ambient-glow-blue {
+  background: radial-gradient(circle, rgba(65, 105, 193, 0.08) 0%, rgba(53, 166, 160, 0.04) 50%, transparent 70%);
+  filter: blur(75px);
+}
+
+.ambient-glow-teal {
+  background: radial-gradient(circle, rgba(53, 166, 160, 0.08) 0%, rgba(41, 157, 112, 0.04) 50%, transparent 75%);
+  filter: blur(85px);
+}
+
+@keyframes ambient-pulse {
+  0%, 100% {
+    transform: translateY(0px) scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: translateY(-6px) scale(1.02);
+    opacity: 1;
+  }
+}
+
+.animate-ambient-slow {
+  animation: ambient-pulse 9s ease-in-out infinite;
+}
+
+.animate-ambient-reverse {
+  animation: ambient-pulse 11s ease-in-out infinite reverse;
+}
+
+/* Keyframes */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Pulse animation for live proctoring badge */
+@keyframes radar-ping {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.8;
+  }
+  70% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+}
+
+.animate-radar-ping {
+  animation: radar-ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}

@@ -1,189 +1,180 @@
+"""
+Task 3: MCQ Generation Engine
+Generates multiple-choice questions with answer keys and technical rationales
+using ChatOpenAI with fallback support.
+"""
 
 import os
 import json
+import re
 from pathlib import Path
-
 from dotenv import load_dotenv
-from langchain_openai import ChatOpenAI
 
 # --------------------------------------------------
-# 1. LOAD API KEY
+# 1. Environment Loading
 # --------------------------------------------------
-
 BASE_DIR = Path(__file__).resolve().parent
-ENV_PATH = BASE_DIR.parent / "api_keys.env"
+PROJECT_ROOT = BASE_DIR.parent
 
-load_dotenv(ENV_PATH, override=True)
+POSSIBLE_ENV_PATHS = [
+    BASE_DIR / "api_keys.env",
+    PROJECT_ROOT / "api_keys.env",
+    PROJECT_ROOT.parent / "api_keys.env",
+    BASE_DIR / ".env",
+    PROJECT_ROOT / ".env",
+]
 
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+env_path = next((p for p in POSSIBLE_ENV_PATHS if p.exists()), None)
+if env_path:
+    load_dotenv(env_path, override=True)
 
-print("Environment file exists:", ENV_PATH.exists())
-print("OpenAI API key loaded:", bool(OPENAI_API_KEY))
-
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "").strip()
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY", "").strip()
+raw_openai_model = os.getenv("OPENAI_MODEL", "gpt-4o-mini").strip()
+OPENAI_MODEL = "gpt-4o-mini" if raw_openai_model in ("gpt-3.5-turbo", "gpt-3.5-turbo-0125", "") else raw_openai_model
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash").strip()
 
 # --------------------------------------------------
-# 2. GENERATE MCQ QUESTIONS
+# 2. MCQ Generator Core Function
 # --------------------------------------------------
-
-def generate_mcqs(topic, difficulty, number_of_questions):
-
-    api_key = OPENAI_API_KEY
-
-    if not ENV_PATH.exists():
-        raise FileNotFoundError(
-            f"API environment file not found: {ENV_PATH}"
-        )
-
-    if not api_key:
-        raise ValueError(
-            "OPENAI_API_KEY is missing from api_keys.env."
-        )
-
+def generate_mcqs(topic: str, difficulty: str, number_of_questions: int):
+    """
+    Generate multiple-choice questions for the requested topic and difficulty.
+    
+    Args:
+        topic (str): The subject or topic name.
+        difficulty (str): 'Easy', 'Medium', or 'Hard'.
+        number_of_questions (int): Number of questions (1-20).
+        
+    Returns:
+        list[dict]: List of question dicts containing:
+                    - 'question': str
+                    - 'options': dict with keys 'A', 'B', 'C', 'D'
+                    - 'answer': 'A' | 'B' | 'C' | 'D'
+                    - 'explanation': str
+    """
     if not topic or not topic.strip():
-        raise ValueError("Please provide a topic.")
+        raise ValueError("Please provide a valid topic name.")
 
-    if not 1 <= number_of_questions <= 20:
+    number_of_questions = max(1, min(int(number_of_questions), 20))
+
+    if not OPENAI_API_KEY and not GOOGLE_API_KEY:
         raise ValueError(
-            "Number of questions must be between 1 and 20."
+            "Neither OPENAI_API_KEY nor GOOGLE_API_KEY found in environment."
         )
 
-    # Initialize the OpenAI model
-    llm = ChatOpenAI(
-        model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
-        temperature=0.5,
-        timeout=60,
-        max_retries=1,
-        api_key=api_key
-    )
-
-    # Prepare the prompt
     prompt = f"""
-Generate exactly {number_of_questions} multiple-choice questions.
+Generate exactly {number_of_questions} multiple-choice questions for an academic examination.
 
-Topic: {topic}
+Topic: {topic.strip()}
 Difficulty: {difficulty}
 
 Requirements:
-- Generate exactly {number_of_questions} questions.
-- Each question must have four options labelled A, B, C and D.
-- Exactly one option must be correct.
-- Match the selected difficulty.
-- Include a short explanation for every correct answer.
-- Return valid JSON only, without Markdown code fences.
+1. Generate exactly {number_of_questions} questions testing core principles and problem solving.
+2. Each question must have four distinct options labeled A, B, C, and D.
+3. Exactly one option must be unambiguously correct.
+4. Match the requested difficulty level ('{difficulty}') appropriately.
+5. Provide a concise, technically sound explanation for why the correct option is right.
+6. Return ONLY valid JSON without markdown code fences or surrounding text.
 
 Required JSON format:
 {{
     "questions": [
         {{
-            "question": "Question text",
+            "question": "Question text here",
             "options": {{
-                "A": "Option A",
-                "B": "Option B",
-                "C": "Option C",
-                "D": "Option D"
+                "A": "Option A text",
+                "B": "Option B text",
+                "C": "Option C text",
+                "D": "Option D text"
             }},
             "answer": "A",
-            "explanation": "Explanation of the correct answer"
+            "explanation": "Explanation of why this answer is correct."
         }}
     ]
 }}
 """
 
-    # Send the prompt to OpenAI
-    response = llm.invoke(prompt)
-    content = response.content
+    raw_content = ""
 
-    # Handle responses containing content blocks
-    if isinstance(content, list):
-        content = "".join(
-            block.get("text", "")
-            for block in content
-            if isinstance(block, dict)
+    # Invoke primary OpenAI model, or fallback to Gemini
+    if OPENAI_API_KEY:
+        from langchain_openai import ChatOpenAI
+        llm = ChatOpenAI(
+            model=OPENAI_MODEL,
+            temperature=0.4,
+            timeout=60,
+            max_retries=2,
+            api_key=OPENAI_API_KEY,
         )
+        response = llm.invoke(prompt)
+        raw_content = response.content
+    elif GOOGLE_API_KEY:
+        from langchain_google_genai import ChatGoogleGenerativeAI
+        llm = ChatGoogleGenerativeAI(
+            model=GEMINI_MODEL,
+            temperature=0.4,
+            timeout=60,
+            max_retries=2,
+            google_api_key=GOOGLE_API_KEY,
+        )
+        response = llm.invoke(prompt)
+        raw_content = response.content
 
-    content = content.strip()
+    if isinstance(raw_content, list):
+        raw_content = "".join(b.get("text", "") for b in raw_content if isinstance(b, dict))
+    raw_content = str(raw_content).strip()
 
-    # Remove Markdown code fences if present
-    if content.startswith("```"):
-        lines = content.splitlines()
+    # Clean markdown fences
+    raw_content = re.sub(r"^```(?:json)?\s*", "", raw_content)
+    raw_content = re.sub(r"\s*```$", "", raw_content)
 
-        if lines and lines[0].startswith("```"):
-            lines = lines[1:]
-
-        if lines and lines[-1].strip() == "```":
-            lines = lines[:-1]
-
-        content = "\n".join(lines).strip()
-
-    # Parse the JSON response
     try:
-        result = json.loads(content)
-    except json.JSONDecodeError as error:
-        raise ValueError(
-            f"The AI returned invalid JSON: {error}"
-        ) from error
+        data = json.loads(raw_content)
+    except json.JSONDecodeError:
+        start = raw_content.find("{")
+        end = raw_content.rfind("}")
+        if start != -1 and end != -1:
+            data = json.loads(raw_content[start:end+1])
+        else:
+            raise ValueError("The AI returned invalid JSON output.")
 
-    if not isinstance(result, dict):
-        raise ValueError(
-            "The AI response must be a JSON object."
-        )
+    questions = data.get("questions")
+    if not isinstance(questions, list) or len(questions) == 0:
+        raise ValueError("The AI response did not contain a valid list of questions.")
 
-    questions = result.get("questions")
+    # Schema validation
+    validated = []
+    seen_texts = set()
 
-    if not isinstance(questions, list):
-        raise ValueError(
-            "The AI response has no valid questions list."
-        )
+    for idx, q in enumerate(questions, start=1):
+        if not isinstance(q, dict):
+            continue
+        q_text = str(q.get("question", "")).strip()
+        opts = q.get("options", {})
+        ans = str(q.get("answer", "")).strip().upper()
+        expl = str(q.get("explanation", "Correct answer verified.")).strip()
 
-    if len(questions) != number_of_questions:
-        raise ValueError(
-            f"Expected {number_of_questions} questions, "
-            f"but received {len(questions)}."
-        )
+        if not q_text or not isinstance(opts, dict):
+            continue
+        if set(opts.keys()) != {"A", "B", "C", "D"}:
+            continue
+        if ans not in {"A", "B", "C", "D"}:
+            continue
 
-    # Validate each generated question
-    required_fields = {
-        "question",
-        "options",
-        "answer",
-        "explanation"
-    }
+        normalized_text = re.sub(r"\W+", " ", q_text.lower()).strip()
+        if normalized_text in seen_texts:
+            continue
+        seen_texts.add(normalized_text)
 
-    for index, question in enumerate(questions, start=1):
+        validated.append({
+            "question": q_text,
+            "options": {k: str(v).strip() for k, v in opts.items()},
+            "answer": ans,
+            "explanation": expl,
+        })
 
-        if not isinstance(question, dict):
-            raise ValueError(
-                f"Question {index} is not a valid object."
-            )
+    if not validated:
+        raise ValueError("Failed to validate generated questions schema.")
 
-        if not required_fields.issubset(question):
-            raise ValueError(
-                f"Question {index} is missing required fields."
-            )
-
-        options = question["options"]
-
-        if not isinstance(options, dict) or set(options) != {
-            "A", "B", "C", "D"
-        }:
-            raise ValueError(
-                f"Question {index} must contain options A, B, C and D."
-            )
-
-        if question["answer"] not in {"A", "B", "C", "D"}:
-            raise ValueError(
-                f"Question {index} has an invalid answer."
-            )
-
-        if not isinstance(question["question"], str):
-            raise ValueError(
-                f"Question {index} must have question text."
-            )
-
-        if not isinstance(question["explanation"], str):
-            raise ValueError(
-                f"Question {index} must have an explanation."
-            )
-
-    # Return the questions to app.py
-    return questions
+    return validated[:number_of_questions]

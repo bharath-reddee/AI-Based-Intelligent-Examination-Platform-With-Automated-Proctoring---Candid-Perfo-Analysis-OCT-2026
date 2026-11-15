@@ -1,186 +1,49 @@
+"""
+Task 2: CSM Exam Prep - AI-Powered MCQ Practice Generator
+Specialized practice test platform for Computer Science & Engineering (AI & ML) students.
+Features 25 core curriculum subjects, custom unit selection, difficulty control,
+and instant solution breakdown.
+"""
 
 import json
 import os
+import sys
 from pathlib import Path
-
 import streamlit as st
 from dotenv import load_dotenv
-from langchain_openai import ChatOpenAI
 
 # --------------------------------------------------
-# 1. LOAD API KEY
+# 1. Environment & Path Setup
 # --------------------------------------------------
-
 BASE_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = BASE_DIR.parent
 
-ENV_PATH = BASE_DIR / "api_keys.env"
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
 
-if not ENV_PATH.exists():
-    ENV_PATH = BASE_DIR.parent / "api_keys.env"
+from ui_theme import DARK_THEME_CSS, render_hero, render_footer
 
-load_dotenv(ENV_PATH, override=True)
+POSSIBLE_ENV_PATHS = [
+    BASE_DIR / "api_keys.env",
+    PROJECT_ROOT / "api_keys.env",
+    PROJECT_ROOT.parent / "api_keys.env",
+    BASE_DIR / ".env",
+    PROJECT_ROOT / ".env",
+]
 
+env_path = next((p for p in POSSIBLE_ENV_PATHS if p.exists()), None)
+if env_path:
+    load_dotenv(env_path, override=True)
 
-
-api_key = os.getenv("OPENAI_API_KEY")
-
-# --------------------------------------------------
-# 2. PAGE CONFIGURATION
-# --------------------------------------------------
-
-st.set_page_config(
-    page_title="CSM Exam Prep | AI MCQ Generator",
-    page_icon="🎓",
-    layout="wide"
-)
-
-# --------------------------------------------------
-# 3. CUSTOM CSS
-# --------------------------------------------------
-
-st.markdown("""
-<style>
-.stApp {
-    background-color: #f1f5f9;
-    color: #172554;
-}
-
-.block-container {
-    max-width: 1150px;
-    padding-top: 2rem;
-    padding-bottom: 3rem;
-}
-
-.hero {
-    background: linear-gradient(120deg, #0f172a, #164e63, #0891b2);
-    padding: 36px;
-    border-radius: 18px;
-    margin-bottom: 28px;
-    border-bottom: 4px solid #22d3ee;
-}
-
-.hero h1 {
-    color: #ffffff !important;
-    font-size: 36px;
-    font-weight: 750;
-    margin-bottom: 10px;
-}
-
-.hero p {
-    color: #cffafe !important;
-    font-size: 16px;
-}
-
-h1, h2, h3, h4, p, label {
-    color: #172554;
-}
-
-div[data-testid="stWidgetLabel"] p,
-div[data-testid="stWidgetLabel"] label {
-    color: #1e3a5f !important;
-    font-weight: 600;
-}
-
-div[data-testid="stMetric"] {
-    background: #ffffff;
-    border: 1px solid #dbeafe;
-    border-radius: 12px;
-    padding: 16px;
-}
-
-.question-card {
-    background: #ffffff;
-    border: 1px solid #cbd5e1;
-    border-left: 5px solid #0891b2;
-    border-radius: 12px;
-    padding: 18px;
-    margin: 20px 0 10px;
-}
-
-.question-title {
-    color: #0f172a !important;
-    font-size: 17px;
-    font-weight: 700;
-}
-
-.option {
-    background: #ffffff;
-    border: 1px solid #dbeafe;
-    padding: 12px 15px;
-    border-radius: 9px;
-    margin: 7px 0;
-    color: #334155 !important;
-}
-
-.option b {
-    color: #0891b2 !important;
-}
-
-div.stButton > button {
-    background: #0891b2;
-    color: #ffffff !important;
-    border: none;
-    border-radius: 9px;
-    padding: 12px 18px;
-    font-weight: 650;
-}
-
-div.stButton > button:hover {
-    background: #0e7490;
-    color: #ffffff !important;
-}
-
-hr {
-    border-color: #cbd5e1;
-}
-</style>
-""", unsafe_allow_html=True)
+openai_api_key = os.getenv("OPENAI_API_KEY", "").strip()
+google_api_key = os.getenv("GOOGLE_API_KEY", "").strip()
+raw_model = os.getenv("OPENAI_MODEL", "gpt-4o-mini").strip()
+default_model = "gpt-4o-mini" if raw_model in ("gpt-3.5-turbo", "gpt-3.5-turbo-0125", "") else raw_model
 
 # --------------------------------------------------
-# 4. HEADER
+# 2. Curriculum Subjects List (Preserved)
 # --------------------------------------------------
-
-st.markdown("""
-<div class="hero">
-    <h1>🎓 CSM Exam Prep</h1>
-    <p>
-        AI-powered practice for Computer Science and Engineering
-        students specializing in Artificial Intelligence and Machine Learning.
-        Generate MCQs, revise concepts, and prepare for examinations.
-    </p>
-</div>
-""", unsafe_allow_html=True)
-
-# --------------------------------------------------
-# 5. DASHBOARD INTRODUCTION
-# --------------------------------------------------
-
-st.subheader("Your CSM Study Dashboard")
-
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.markdown("### 📚")
-    st.markdown("**CSM Subjects**")
-    st.write("Explore core AI, ML, and computer science subjects.")
-
-with col2:
-    st.markdown("### 🧠")
-    st.markdown("**AI-Generated MCQs**")
-    st.write("Practice questions with answer explanations.")
-
-with col3:
-    st.markdown("### 🎯")
-    st.markdown("**Exam Preparation**")
-    st.write("Customize your difficulty and question count.")
-
-st.divider()
-
-# --------------------------------------------------
-# 6. CSM SUBJECTS
-# --------------------------------------------------
-
-subjects = [
+CSM_SUBJECTS = [
     "Engineering Mathematics",
     "Python Programming",
     "Java Programming",
@@ -209,102 +72,37 @@ subjects = [
 ]
 
 # --------------------------------------------------
-# 7. QUIZ CONFIGURATION
+# 3. MCQ Generation Core
 # --------------------------------------------------
-
-st.subheader("⚙️ Configure Your Practice Test")
-st.write("Choose your subject, difficulty, and number of questions.")
-
-col1, col2 = st.columns(2)
-
-with col1:
-    subject = st.selectbox(
-        "📘 Select CSM Subject",
-        subjects
-    )
-
-with col2:
-    difficulty = st.selectbox(
-        "🎯 Difficulty Level",
-        ["Easy", "Medium", "Hard"]
-    )
-
-col1, col2 = st.columns(2)
-
-with col1:
-    number_of_questions = st.number_input(
-        "🔢 Number of Questions",
-        min_value=1,
-        max_value=20,
-        value=5,
-        step=1
-    )
-
-with col2:
-    st.markdown("**Question Format**")
-    st.info("4 options per question • 1 correct answer")
-
-custom_topic = st.text_input(
-    "📝 Specific Unit or Topic (Optional)",
-    placeholder="Example: Decision Trees, Unit 3, Neural Networks"
-)
-
-st.caption(
-    "Leave the topic blank to generate questions from the selected subject."
-)
-
-generate = st.button(
-    "🚀 Generate CSM MCQs",
-    use_container_width=True,
-    type="primary"
-)
-
-# --------------------------------------------------
-# 8. GENERATE MCQs
-# --------------------------------------------------
-
-if generate:
-
-    if not api_key:
-        st.error(
-            "OpenAI API key not found. Check that api_keys.env "
-            "is in the same folder as task2.py and contains "
-            "OPENAI_API_KEY=your_actual_key."
+def generate_csm_mcqs(subject_name, topic_focus, diff_level, count):
+    """Generate university-grade MCQs with reliable JSON extraction and fallback."""
+    if not openai_api_key and not google_api_key:
+        raise ValueError(
+            "No API key detected. Please configure OPENAI_API_KEY or GOOGLE_API_KEY in api_keys.env."
         )
 
-    else:
-        selected_topic = subject
+    prompt = f"""
+You are an experienced university-level B.Tech CSM (Computer Science & Engineering in AI & ML) examination setter.
 
-        if custom_topic.strip():
-            selected_topic += " - " + custom_topic.strip()
-
-        prompt = f"""
-You are an experienced university-level B.Tech CSM examination setter.
-
-Generate exactly {number_of_questions} multiple-choice questions.
-
-Branch: CSM - Computer Science and Engineering (AI & ML)
-Subject: {subject}
-Specific topic: {custom_topic.strip() or "General subject syllabus"}
-Difficulty: {difficulty}
+Generate exactly {count} multiple-choice questions for the following specification:
+- Branch: CSM - Computer Science and Engineering (AI & ML)
+- Subject: {subject_name}
+- Specific Focus: {topic_focus or "General subject curriculum"}
+- Difficulty: {diff_level}
 
 Requirements:
-1. Questions must be relevant to the selected subject and CSM syllabus.
-2. Match the requested difficulty level.
-3. Cover important concepts, applications, and problem-solving.
-4. Avoid duplicate questions.
-5. Every question must have exactly four options: A, B, C, D.
-6. Exactly one option must be correct.
-7. Ensure every correct answer is technically accurate.
-8. Provide a short explanation for each correct answer.
-9. Return valid JSON only, without Markdown code fences.
-10. Generate exactly {number_of_questions} questions.
+1. Questions must be strictly relevant to the B.Tech CSM syllabus.
+2. Match the requested difficulty level accurately.
+3. Every question must have exactly four options labeled A, B, C, and D.
+4. Exactly one option must be correct.
+5. Provide a clear, technically sound explanation for why the correct answer is right.
+6. Return ONLY valid JSON without markdown code fences or conversational text.
 
 Required JSON structure:
 {{
     "questions": [
         {{
-            "question": "Question text",
+            "question": "Question text here",
             "options": {{
                 "A": "First option",
                 "B": "Second option",
@@ -312,139 +110,272 @@ Required JSON structure:
                 "D": "Fourth option"
             }},
             "answer": "A",
-            "explanation": "Explanation of the correct answer"
+            "explanation": "Detailed rationale for the answer."
         }}
     ]
 }}
 """
 
-        try:
-            llm = ChatOpenAI(
-                model="gpt-3.5-turbo",
-                temperature=0.5,
-                timeout=60,
-                max_retries=1
-            )
+    raw_text = ""
+    if openai_api_key:
+        from langchain_openai import ChatOpenAI
+        llm = ChatOpenAI(
+            model=default_model,
+            temperature=0.4,
+            timeout=60,
+            max_retries=2,
+            api_key=openai_api_key,
+        )
+        response = llm.invoke(prompt)
+        raw_text = response.content
+    elif google_api_key:
+        from langchain_google_genai import ChatGoogleGenerativeAI
+        gemini_model_name = os.getenv("GEMINI_MODEL", "gemini-1.5-flash")
+        llm = ChatGoogleGenerativeAI(
+            model=gemini_model_name,
+            temperature=0.4,
+            timeout=60,
+            max_retries=2,
+            google_api_key=google_api_key,
+        )
+        response = llm.invoke(prompt)
+        raw_text = response.content
 
-            with st.spinner("Generating your CSM practice questions..."):
-                response = llm.invoke(prompt)
-                result_text = response.content
+    if isinstance(raw_text, list):
+        raw_text = "".join(b.get("text", "") for b in raw_text if isinstance(b, dict))
+    raw_text = str(raw_text).strip()
 
-                if isinstance(result_text, list):
-                    result_text = "".join(
-                        block.get("text", "")
-                        for block in result_text
-                        if isinstance(block, dict)
-                    )
+    if raw_text.startswith("```"):
+        raw_text = raw_text.split("\n", 1)[1]
+        raw_text = raw_text.rsplit("```", 1)[0].strip()
 
-                result_text = result_text.strip()
+    try:
+        data = json.loads(raw_text)
+    except json.JSONDecodeError:
+        start = raw_text.find("{")
+        end = raw_text.rfind("}")
+        if start != -1 and end != -1:
+            data = json.loads(raw_text[start:end+1])
+        else:
+            raise ValueError("AI response did not contain valid JSON.")
 
-                if result_text.startswith("```"):
-                    result_text = result_text.split("\n", 1)[1]
-                    result_text = result_text.rsplit("```", 1)[0].strip()
+    questions = data.get("questions", [])
+    if not isinstance(questions, list) or len(questions) == 0:
+        raise ValueError("No questions found in AI response.")
 
-                result = json.loads(result_text)
-                questions = result.get("questions", [])
+    validated = []
+    for idx, q in enumerate(questions, start=1):
+        if not isinstance(q, dict):
+            continue
+        q_text = q.get("question", "").strip()
+        opts = q.get("options", {})
+        ans = q.get("answer", "").strip().upper()
+        expl = q.get("explanation", "Verified correct option.").strip()
 
-                if not questions:
-                    st.error("No questions were generated.")
+        if not q_text or not isinstance(opts, dict):
+            continue
+        if set(opts.keys()) != {"A", "B", "C", "D"}:
+            continue
+        if ans not in {"A", "B", "C", "D"}:
+            continue
 
-                else:
-                    st.session_state["mcq_questions"] = questions
-                    st.session_state["mcq_topic"] = selected_topic
-                    st.session_state["mcq_subject"] = subject
-                    st.session_state["mcq_difficulty"] = difficulty
+        validated.append({
+            "question": q_text,
+            "options": opts,
+            "answer": ans,
+            "explanation": expl,
+        })
 
-        except Exception as e:
-            st.error(f"Unable to generate questions: {e}")
+    if not validated:
+        raise ValueError("Failed to validate generated questions schema.")
+    return validated
 
 # --------------------------------------------------
-# 9. DISPLAY GENERATED QUIZ
+# 4. Streamlit Application View Logic
 # --------------------------------------------------
+def main():
+    st.set_page_config(
+        page_title="CSM Exam Prep | AI Practice Generator",
+        page_icon="🎓",
+        layout="wide",
+        initial_sidebar_state="collapsed",
+    )
 
-if "mcq_questions" in st.session_state:
+    st.markdown(DARK_THEME_CSS, unsafe_allow_html=True)
 
-    questions = st.session_state["mcq_questions"]
-
-    st.divider()
-    st.header("📋 Your Generated Practice Test")
+    render_hero(
+        title="🎓 CSM Engineering Exam Prep",
+        subtitle=(
+            "AI-powered practice platform for Computer Science & Engineering students "
+            "specializing in Artificial Intelligence and Machine Learning. Generate curriculum-aligned "
+            "MCQs, test your problem-solving depth, and review comprehensive explanations."
+        ),
+        badge="B.TECH CSM PRACTICE ENGINE • TASK 2"
+    )
 
     col1, col2, col3 = st.columns(3)
-
     with col1:
-        st.metric("Branch", "CSM")
-
-    with col2:
-        st.metric(
-            "Difficulty",
-            st.session_state["mcq_difficulty"]
-        )
-
-    with col3:
-        st.metric("Total Questions", len(questions))
-
-    st.markdown(
-        f"**Subject and topic:** {st.session_state['mcq_topic']}"
-    )
-
-    show_answers = st.checkbox(
-        "👁️ Show correct answers and explanations"
-    )
-
-    st.divider()
-
-    for index, item in enumerate(questions, start=1):
-
         st.markdown(
-            f'<div class="question-card">'
-            f'<div class="question-title">'
-            f'Q{index}. {item["question"]}'
-            f'</div></div>',
+            """
+            <div class="question-card" style="margin-top:0;">
+                <div style="font-size:1.5rem; margin-bottom:8px;">📚</div>
+                <div style="font-weight:700; color:#F8FAFC; margin-bottom:4px;">25 CSM Subjects</div>
+                <div style="font-size:0.88rem; color:#94A3B8;">Full coverage across AI, ML, Systems, and Core Computer Science.</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+    with col2:
+        st.markdown(
+            """
+            <div class="question-card" style="margin-top:0;">
+                <div style="font-size:1.5rem; margin-bottom:8px;">🧠</div>
+                <div style="font-weight:700; color:#F8FAFC; margin-bottom:4px;">Rigorous Question Engine</div>
+                <div style="font-size:0.88rem; color:#94A3B8;">Single-choice questions formatted to university standard with rationale.</div>
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+    with col3:
+        st.markdown(
+            """
+            <div class="question-card" style="margin-top:0;">
+                <div style="font-size:1.5rem; margin-bottom:8px;">🎯</div>
+                <div style="font-weight:700; color:#F8FAFC; margin-bottom:4px;">Adaptive Difficulty</div>
+                <div style="font-size:0.88rem; color:#94A3B8;">Tailor test depth from foundational recall to complex problem-solving.</div>
+            </div>
+            """,
             unsafe_allow_html=True
         )
 
-        options = item["options"]
+    st.divider()
 
-        for label in ["A", "B", "C", "D"]:
-            st.markdown(
-                f'<div class="option">'
-                f'<b>{label})</b> {options[label]}'
-                f'</div>',
-                unsafe_allow_html=True
-            )
+    st.subheader("⚙️ Configure Your Practice Test")
+    st.write("Customize your subject focus, target syllabus unit, and evaluation difficulty.")
 
-        if show_answers:
-            answer = item.get("answer", "")
+    col1, col2 = st.columns(2)
+    with col1:
+        subject = st.selectbox(
+            "📘 Select CSM Subject",
+            CSM_SUBJECTS,
+            index=0,
+            help="Select a core subject from the official B.Tech CSM curriculum."
+        )
+    with col2:
+        difficulty = st.selectbox(
+            "🎯 Difficulty Level",
+            ["Easy", "Medium", "Hard"],
+            index=1,
+            help="Select appropriate depth of conceptual assessment."
+        )
 
-            if answer in options:
-                st.success(
-                    f'Correct Answer: {answer}) {options[answer]}'
+    col1, col2 = st.columns(2)
+    with col1:
+        number_of_questions = st.number_input(
+            "🔢 Number of Questions",
+            min_value=1,
+            max_value=20,
+            value=5,
+            step=1,
+            help="Choose between 1 and 20 practice questions."
+        )
+    with col2:
+        st.markdown("**Question Standard & Format**")
+        st.info("4 options per question (A, B, C, D) • Exactly 1 verified correct answer")
+
+    custom_topic = st.text_input(
+        "📝 Specific Unit or Topic (Optional)",
+        placeholder="e.g., Graph Neural Networks, Unit 3: Dynamic Programming, Eigenvalues",
+        help="Leave blank to cover the general syllabus of the selected subject."
+    )
+
+    generate = st.button(
+        "🚀 Generate CSM Practice MCQs",
+        use_container_width=True,
+        type="primary"
+    )
+
+    if generate:
+        topic_label = subject
+        if custom_topic.strip():
+            topic_label += f" — {custom_topic.strip()}"
+
+        with st.spinner("Generating rigorous CSM practice questions..."):
+            try:
+                questions = generate_csm_mcqs(
+                    subject_name=subject,
+                    topic_focus=custom_topic.strip(),
+                    diff_level=difficulty,
+                    count=int(number_of_questions),
                 )
+                st.session_state["mcq_questions"] = questions
+                st.session_state["mcq_topic"] = topic_label
+                st.session_state["mcq_subject"] = subject
+                st.session_state["mcq_difficulty"] = difficulty
+                st.success(f"Generated {len(questions)} CSM questions successfully!")
+            except Exception as err:
+                st.error(f"Generation error: {err}")
+                with st.expander("Technical details"):
+                    st.code(str(err))
 
-                st.info(
-                    "Explanation: "
-                    + item.get(
-                        "explanation",
-                        "No explanation provided."
-                    )
-                )
-            else:
-                st.warning(
-                    f"Invalid answer for Question {index}."
-                )
+    if "mcq_questions" in st.session_state and st.session_state["mcq_questions"]:
+        questions = st.session_state["mcq_questions"]
+
+        st.divider()
+        st.subheader("📋 Your Generated Practice Test")
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Branch / Track", "B.Tech CSM")
+        with col2:
+            st.metric("Difficulty", st.session_state.get("mcq_difficulty", "Medium"))
+        with col3:
+            st.metric("Total Questions", len(questions))
+
+        st.markdown(f"**Curriculum Scope:** `{st.session_state.get('mcq_topic', '')}`")
+
+        show_answers = st.checkbox(
+            "👁️ Reveal Correct Answers and Technical Explanations",
+            value=False,
+            help="Toggle to view step-by-step rationales for each option."
+        )
 
         st.write("")
 
-# --------------------------------------------------
-# 10. FOOTER
-# --------------------------------------------------
+        for index, item in enumerate(questions, start=1):
+            st.markdown(
+                f"""
+                <div class="question-card">
+                    <span class="question-meta">QUESTION {index} OF {len(questions)}</span>
+                    <div class="question-title" style="margin-top:6px;">{item["question"]}</div>
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
 
-st.divider()
+            options = item["options"]
+            for label in ["A", "B", "C", "D"]:
+                st.markdown(
+                    f"""
+                    <div class="option-item">
+                        <span class="option-badge">{label}</span>
+                        <span>{options[label]}</span>
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
 
-st.markdown(
-    "<div style='text-align:center; color:#64748b;'>"
-    "CSM Exam Prep | AI-Powered Engineering Practice"
-    "</div>",
-    unsafe_allow_html=True
-)
-# python -m streamlit run ".\Milestone 1\task2.py"
+            if show_answers:
+                answer = item.get("answer", "")
+                if answer in options:
+                    st.success(f"**Correct Option:** **{answer}**) {options[answer]}")
+                    st.info(f"**Technical Explanation:** {item.get('explanation', 'No explanation provided.')}")
+                else:
+                    st.warning(f"Answer key not found for Question {index}.")
+
+            st.write("")
+
+    render_footer(task_label="Task 2 • CSM Practice Engine")
+
+if __name__ == "__main__":
+    main()

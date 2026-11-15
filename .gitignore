@@ -1,16 +1,115 @@
 
+# ==========================================
+# ENVIRONMENT VARIABLES & SECRETS
+# ==========================================
 .env
 .env.*
 !.env.example
 **/.env
 **/.env.*
 !**/.env.example
+
 api_keys.env
 **/api_keys.env
+secrets/
+*.pem
+*.key
+*.p12
+*.pfx
+
+# ==========================================
+# PYTHON VIRTUAL ENVIRONMENTS
+# ==========================================
 .venv/
 **/.venv/
 venv/
 **/venv/
+ENV/
+env/
+
+# ==========================================
+# PYTHON CACHE FILES
+# ==========================================
 __pycache__/
 **/__pycache__/
 *.py[cod]
+*$py.class
+*.pyo
+
+# ==========================================
+# PYTHON TESTING & COVERAGE
+# ==========================================
+.pytest_cache/
+**/.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.mypy_cache/
+.ruff_cache/
+
+# ==========================================
+# NODE.JS & FRONTEND
+# ==========================================
+node_modules/
+**/node_modules/
+.next/
+**/.next/
+.nuxt/
+dist/
+build/
+coverage/
+.vite/
+*.tsbuildinfo
+
+# ==========================================
+# IDE & EDITOR FILES
+# ==========================================
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+
+# ==========================================
+# OPERATING SYSTEM FILES
+# ==========================================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ==========================================
+# LOGS & TEMPORARY FILES
+# ==========================================
+*.log
+logs/
+temp/
+tmp/
+*.tmp
+*.bak
+*.swp
+
+# ==========================================
+# BACKUP FILES
+# ==========================================
+_backup_original/
+**/_backup_original/
+
+# ==========================================
+# DATABASE & LOCAL DATA
+# ==========================================
+*.sqlite3
+*.db-journal
+
+# ==========================================
+# MODEL & GENERATED FILES
+# ==========================================
+*.pt
+*.pth
+*.onnx
+*.h5
+*.joblib
+*.pkl
+__model_cache__/
+model_cache/
